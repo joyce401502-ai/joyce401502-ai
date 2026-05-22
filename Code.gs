@@ -1,6 +1,6 @@
-const OPENAI_MODEL = 'gpt-5.4-mini';
-const SPREADSHEET_ID = '1TolZAXCCD2OUZiStX1X-qWTZfohtDLKABqz-MxFjHEY';
-const SHEET_NAME = 'Chatbot聊天紀錄';
+var OPENAI_MODEL = 'gpt-5.4-mini';
+var SPREADSHEET_ID = '1TolZAXCCD2OUZiStX1X-qWTZfohtDLKABqz-MxFjHEY';
+var SHEET_NAME = 'Chatbot聊天紀錄';
 
 function doGet() {
   return HtmlService
@@ -11,8 +11,8 @@ function doGet() {
 
 function doPost(event) {
   try {
-    const payload = JSON.parse(event.postData.contents || '{}');
-    const result = handleChat(payload);
+    var payload = JSON.parse(event.postData.contents || '{}');
+    var result = handleChat(payload);
     return jsonOutput(result);
   } catch (error) {
     return jsonOutput({ error: true, message: error.message });
@@ -20,74 +20,92 @@ function doPost(event) {
 }
 
 function handleChat(payload) {
-  const now = new Date();
-  const conversationId = payload.conversationId || Utilities.getUuid();
-  const userMessage = String(payload.message || '').trim();
+  var now = new Date();
+  var conversationId = payload.conversationId || Utilities.getUuid();
+  var userMessage = String(payload.message || '').trim();
 
   if (!userMessage) {
     throw new Error('訊息內容不可為空。');
   }
 
   appendLog({
-    conversationId,
+    conversationId: conversationId,
     role: 'user',
     content: userMessage,
     model: OPENAI_MODEL,
     createdAt: now
   });
 
-  const reply = callOpenAI(payload, userMessage);
+  var reply = callOpenAI(payload, userMessage);
 
   appendLog({
-    conversationId,
+    conversationId: conversationId,
     role: 'assistant',
     content: reply,
     model: OPENAI_MODEL,
     createdAt: new Date()
   });
 
-  return { conversationId, reply };
+  return {
+    conversationId: conversationId,
+    reply: reply
+  };
 }
 
 function callOpenAI(payload, userMessage) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_AI_KEY');
+  var apiKey = PropertiesService.getScriptProperties().getProperty('OPENAI_AI_KEY');
   if (!apiKey) {
     throw new Error('尚未設定 OPENAI_AI_KEY。');
   }
 
-  const history = Array.isArray(payload.history) ? payload.history.slice(-12) : [];
-  const messages = [{ role: 'system', content: payload.persona || defaultPersona() }];
+  var history = Array.isArray(payload.history) ? payload.history.slice(-12) : [];
+  var messages = [
+    {
+      role: 'system',
+      content: payload.persona || defaultPersona()
+    }
+  ];
 
-  history.forEach(item => {
+  history.forEach(function(item) {
     if (!item || !item.role || !item.content) return;
-    const role = item.role === 'assistant' ? 'assistant' : 'user';
-    messages.push({ role, content: String(item.content) });
+    var role = item.role === 'assistant' ? 'assistant' : 'user';
+    messages.push({ role: role, content: String(item.content) });
   });
 
   messages.push({ role: 'user', content: userMessage });
 
-  const response = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
+  var response = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
     method: 'post',
     contentType: 'application/json',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    payload: JSON.stringify({ model: OPENAI_MODEL, messages, temperature: 0.75 }),
+    headers: {
+      Authorization: 'Bearer ' + apiKey
+    },
+    payload: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: messages,
+      temperature: 0.75
+    }),
     muteHttpExceptions: true
   });
 
-  const status = response.getResponseCode();
-  const body = response.getContentText();
+  var status = response.getResponseCode();
+  var body = response.getContentText();
 
   if (status < 200 || status >= 300) {
-    throw new Error(`OpenAI 回應異常：${status} ${body}`);
+    throw new Error('OpenAI 回應異常：' + status + ' ' + body);
   }
 
-  const data = JSON.parse(body);
-  const reply = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  var data = JSON.parse(body);
+  var reply = data.choices &&
+    data.choices[0] &&
+    data.choices[0].message &&
+    data.choices[0].message.content;
+
   return stripMarkdown(reply || '我在，請再多告訴我一點，我會陪你慢慢整理。');
 }
 
 function appendLog(entry) {
-  const sheet = getLogSheet();
+  var sheet = getLogSheet();
   sheet.appendRow([
     Utilities.formatDate(entry.createdAt, Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm:ss'),
     entry.conversationId,
@@ -98,8 +116,8 @@ function appendLog(entry) {
 }
 
 function getLogSheet() {
-  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let sheet = spreadsheet.getSheetByName(SHEET_NAME);
+  var spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = spreadsheet.getSheetByName(SHEET_NAME);
 
   if (!sheet) {
     sheet = spreadsheet.insertSheet(SHEET_NAME);
@@ -128,7 +146,7 @@ function defaultPersona() {
 
 function stripMarkdown(text) {
   return String(text || '')
-    .replace(/```[\s\S]*?```/g, block => block.replace(/```/g, ''))
+    .replace(/```[\s\S]*?```/g, function(block) { return block.replace(/```/g, ''); })
     .replace(/[*_#>`~]/g, '')
     .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
     .trim();
